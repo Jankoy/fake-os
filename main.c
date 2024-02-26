@@ -16,13 +16,13 @@ typedef void (*WindowUpdateCallback)(Window *);
 typedef void (*WindowDrawCallback)(Window *);
 
 struct Window {
+  size_t id;
+  const char *title;
   Vector2 pos;
   Vector2 size;
-  const char *title;
   WindowUpdateCallback update_callback;
   WindowDrawCallback draw_callback;
   RenderTexture render_texture;
-  size_t id;
 };
 
 static bool is_dragging = false;
@@ -92,40 +92,40 @@ void my_window_draw(Window *w);
 
 static Window windows[] = {
     {
+        .id = 0,
+        .title = "Red Circle Window",
         .pos = {.x = 120.0f, .y = 80.0f},
         .size = {.x = 200.0f, .y = 200.0f},
-        .title = "Red Circle Window",
         .update_callback = NULL,
         .draw_callback = my_window_draw,
         .render_texture = {0},
-        .id = 0,
     },
     {
+        .id = 1,
+        .title = "Blue Square Window",
         .pos = {.x = 480.0f, .y = 80.0f},
         .size = {.x = 200.0f, .y = 200.0f},
-        .title = "Blue Square Window",
         .update_callback = NULL,
         .draw_callback = my_window_draw,
         .render_texture = {0},
-        .id = 1,
     },
     {
+        .title = "Yellow Square Window",
+        .id = 2,
         .pos = {.x = 120.0f, .y = 300.0f},
         .size = {.x = 200.0f, .y = 200.0f},
-        .title = "Yellow Square Window",
         .update_callback = NULL,
         .draw_callback = my_window_draw,
         .render_texture = {0},
-        .id = 2,
     },
     {
+        .id = 3,
+        .title = "Green Circle Window",
         .pos = {.x = 480.0f, .y = 300.0f},
         .size = {.x = 200.0f, .y = 200.0f},
-        .title = "Green Circle Window",
         .update_callback = NULL,
         .draw_callback = my_window_draw,
         .render_texture = {0},
-        .id = 3,
     },
 };
 
@@ -134,19 +134,22 @@ static const size_t window_count = sizeof(windows) / sizeof(Window);
 void my_window_draw(Window *w) {
   ClearBackground(BLACK);
   switch (w->id) {
-    case 0:
-      DrawCircleV(pos, 20.0f, RED);
-      break;
-    case 1:
-      DrawRectangleV(Vector2Subtract(pos, (Vector2){.x = 20.0f, .y = 20.0f}), (Vector2){.x = 40.0f, .y = 40.0f}, BLUE);
-      break;
-    case 2:
-      DrawRectangleV(Vector2Subtract(pos, (Vector2){.x = 20.0f, .y = 20.0f}), (Vector2){.x = 40.0f, .y = 40.0f}, YELLOW);
-      break;
-    case 3:
-      DrawCircleV(pos, 20.0f, GREEN);
-      break;
-    default: break;
+  case 0:
+    DrawCircleV(pos, 20.0f, RED);
+    break;
+  case 1:
+    DrawRectangleV(Vector2Subtract(pos, (Vector2){.x = 20.0f, .y = 20.0f}),
+                   (Vector2){.x = 40.0f, .y = 40.0f}, BLUE);
+    break;
+  case 2:
+    DrawRectangleV(Vector2Subtract(pos, (Vector2){.x = 20.0f, .y = 20.0f}),
+                   (Vector2){.x = 40.0f, .y = 40.0f}, YELLOW);
+    break;
+  case 3:
+    DrawCircleV(pos, 20.0f, GREEN);
+    break;
+  default:
+    break;
   }
 }
 
