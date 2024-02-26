@@ -8,16 +8,6 @@ static void draw_text_centered(const char *text, int font_size, Vector2 pos,
            font_size, color);
 }
 
-struct Window {
-  WindowHandle id;
-  const char *title;
-  Vector2 pos;
-  Vector2 size;
-  WindowUpdateCallback update_callback;
-  WindowDrawCallback draw_callback;
-  RenderTexture render_texture;
-};
-
 static struct {
   Window *items;
   size_t count;
@@ -86,7 +76,7 @@ void update_windows() {
     }
 
     if (w->update_callback)
-      w->update_callback(w->id);
+      w->update_callback(w);
   }
   if (clicked < windows.count) {
     Window temp = windows.items[clicked];
@@ -108,7 +98,7 @@ void draw_windows() {
         BLACK);
     BeginTextureMode(w->render_texture);
     if (w->draw_callback)
-      w->draw_callback(w->id);
+      w->draw_callback(w);
     EndTextureMode();
     DrawTextureRec(
         w->render_texture.texture,
