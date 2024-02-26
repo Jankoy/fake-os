@@ -3,11 +3,11 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#define BALL_RADIUS 15.0
-#define GRAVITY 1500.0
+#define BALL_RADIUS 20.0
+#define GRAVITY 1100.0
 
-static Vector2 ball_position = {20.0f, 20.0f};
-static Vector2 ball_velocity = {200, 200};
+static Vector2 ball_position = {.x = 20.0f, .y = 50.0f};
+static Vector2 ball_velocity = {.x = 100.0f, .y = 80.0f};
 
 void ball_window_update(Window *w) {
   const float dt = GetFrameTime();
