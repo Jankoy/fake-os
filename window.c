@@ -9,7 +9,7 @@ static void draw_text_centered(const char *text, int font_size, Vector2 pos,
 }
 
 struct Window {
-  size_t id;
+  WindowHandle id;
   const char *title;
   Vector2 pos;
   Vector2 size;
@@ -40,12 +40,20 @@ WindowHandle create_window(const char *title, Vector2 pos, Vector2 size,
   return w.id;
 }
 
+static size_t find_window_from_handle(WindowHandle window_handle) {
+  for (size_t i = 0; i < windows.count; ++i)
+    if (windows.items[i].id == window_handle)
+      return i;
+  return windows.count + 1;
+}
+
 void free_window(WindowHandle window_handle) {
-  UnloadRenderTexture(windows.items[window_handle].render_texture);
-
-  for (size_t i = window_handle; i < windows.count - 1; ++i)
+  size_t index = find_window_from_handle(window_handle);
+  if (index > windows.count)
+    return;
+  UnloadRenderTexture(windows.items[index].render_texture);
+  for (size_t i = index; i < windows.count - 1; ++i)
     windows.items[i] = windows.items[i + 1];
-
   windows.count -= 1;
 }
 
