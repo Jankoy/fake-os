@@ -8,10 +8,9 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
+    - uses: actions/checkout@v4
     - name: get deps
       run: sudo apt install xorg-dev
     - name: bootstrap
