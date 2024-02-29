@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: get deps
+      run: sudo apt install xorg-dev
     - name: bootstrap
       run: cc -o nob nob.c
     - name: build
