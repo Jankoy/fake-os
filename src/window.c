@@ -52,6 +52,7 @@ static Vector2 drag_offset = {0};
 
 void update_windows() {
   const Vector2 mouse_position = GetMousePosition();
+  bool should_close = false;
   size_t clicked = windows.count;
   for (size_t i = 0; i < windows.count; ++i) {
     Window *w = windows.items + i;
@@ -61,6 +62,9 @@ void update_windows() {
                                                            .y = w->pos.y,
                                                            .width = w->size.x,
                                                            .height = 20.0f})) {
+      if (mouse_position.x > w->pos.x + w->size.x - 13.0f &&
+          mouse_position.x < w->pos.x + w->size.x - 2.0f)
+        should_close = true;
       clicked = i;
     } else if (is_dragging) {
       if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
@@ -80,11 +84,15 @@ void update_windows() {
   }
   if (clicked < windows.count) {
     Window temp = windows.items[clicked];
-    for (size_t j = clicked; j < windows.count - 1; j++)
-      windows.items[j] = windows.items[j + 1];
+    for (size_t i = clicked; i < windows.count - 1; ++i)
+      windows.items[i] = windows.items[i + 1];
     windows.items[windows.count - 1] = temp;
-    is_dragging = true;
-    drag_offset = Vector2Subtract(mouse_position, temp.pos);
+    if (should_close)
+      free_window(temp.id);
+    else {
+      is_dragging = true;
+      drag_offset = Vector2Subtract(mouse_position, temp.pos);
+    }
   }
 }
 
@@ -96,6 +104,8 @@ void draw_windows() {
         w->title, 10,
         (Vector2){.x = w->pos.x + w->size.x / 2.0f, .y = w->pos.y + 10.0f},
         BLACK);
+    DrawText("x", (int)w->pos.x + (int)w->size.x - 12, (int)w->pos.y + 2, 15,
+             BLACK);
     BeginTextureMode(w->render_texture);
     if (w->draw_callback)
       w->draw_callback(w);

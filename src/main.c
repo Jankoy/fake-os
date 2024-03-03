@@ -68,15 +68,15 @@ int main(void) {
 
   WindowHandle win2 = create_window(
       "Placeholder Blue Square Example", (Vector2){.x = 480.0f, .y = 80.0f},
-      (Vector2){.x = 200.0f, .y = 200.0f}, NULL, fallback_window_draw);
+      (Vector2){.x = 220.0f, .y = 220.0f}, NULL, fallback_window_draw);
 
   WindowHandle win3 = create_window(
       "Placeholder Yellow Square Example", (Vector2){.x = 120.0f, .y = 300.0f},
-      (Vector2){.x = 200.0f, .y = 200.0f}, NULL, fallback_window_draw);
+      (Vector2){.x = 220.0f, .y = 220.0f}, NULL, fallback_window_draw);
 
   WindowHandle win4 = create_window(
       "Placeholder Green Circle Example", (Vector2){.x = 480.0f, .y = 300.0f},
-      (Vector2){.x = 200.0f, .y = 200.0f}, NULL, fallback_window_draw);
+      (Vector2){.x = 220.0f, .y = 220.0f}, NULL, fallback_window_draw);
 
   while (!WindowShouldClose()) {
     update_windows();
@@ -85,8 +85,8 @@ int main(void) {
     const float time = GetTime();
 
     pos.x += 60.0f * frame_time;
-    if (pos.x > 260.0f)
-      pos.x = -60.0f;
+    if (pos.x > 280.0f)
+      pos.x = -80.0f;
     pos.y = 100.0f + sinf(time * 2.0f) * 30.0f;
 
     BeginDrawing();

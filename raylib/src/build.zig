@@ -1,86 +1,57 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// This has been tested to work with zig 0.11.0, zig 0.12.0-dev.2075+f5978181e and 0.12.0-dev.2990+31763d28c
-//
-// anytype is used here to preserve compatibility, in 0.12.0dev the std.zig.CrossTarget type
-// was reworked into std.Target.Query and std.Build.ResolvedTarget. Using anytype allows
-// us to accept both CrossTarget and ResolvedTarget and act accordingly in getOsTagVersioned.
-pub fn addRaylib(b: *std.Build, target: anytype, optimize: std.builtin.OptimizeMode, options: Options) !*std.Build.Step.Compile {
-    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = general_purpose_allocator.allocator();
-    // get the relative source path, because it is needed for addCSourceFilesVersioned
-    const relative = srcdir[b.build_root.path.?.len..];
-    if (comptime builtin.zig_version.minor >= 12 and @TypeOf(target) != std.Build.ResolvedTarget) {
-        @compileError("Expected 'std.Build.ResolvedTarget' for argument 2 'target' in 'addRaylib', found '" ++ @typeName(@TypeOf(target)) ++ "'");
-    } else if (comptime builtin.zig_version.minor == 11 and @TypeOf(target) != std.zig.CrossTarget) {
-        @compileError("Expected 'std.zig.CrossTarget' for argument 2 'target' in 'addRaylib', found '" ++ @typeName(@TypeOf(target)) ++ "'");
-    }
-
-    const shared_flags = &[_][]const u8{
-        "-fPIC",
-        "-DBUILD_LIBTYPE_SHARED",
-    };
-    var raylib_flags_arr = std.ArrayList([]const u8).init(std.heap.page_allocator);
-    defer raylib_flags_arr.deinit();
-    try raylib_flags_arr.appendSlice(&[_][]const u8{
+// This has been tested to work with zig 0.11.0 and zig 0.12.0-dev.1390+94cee4fb2
+pub fn addRaylib(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode, options: Options) *std.Build.CompileStep {
+    const raylib_flags = &[_][]const u8{
         "-std=gnu99",
         "-D_GNU_SOURCE",
         "-DGL_SILENCE_DEPRECATION=199309L",
-        "-fno-sanitize=undefined", // https://github.com/raysan5/raylib/issues/3674
-    });
-    if (options.shared) {
-        try raylib_flags_arr.appendSlice(shared_flags);
-    }
+    };
 
-    const raylib = if (options.shared)
-        b.addSharedLibrary(.{
-            .name = "raylib",
-            .target = target,
-            .optimize = optimize,
-        })
-    else
-        b.addStaticLibrary(.{
-            .name = "raylib",
-            .target = target,
-            .optimize = optimize,
-        });
+    const raylib = b.addStaticLibrary(.{
+        .name = "raylib",
+        .target = target,
+        .optimize = optimize,
+    });
     raylib.linkLibC();
 
     // No GLFW required on PLATFORM_DRM
     if (!options.platform_drm) {
-        raylib.addIncludePath(.{ .cwd_relative = srcdir ++ "/external/glfw/include" });
+        raylib.addIncludePath(.{ .path = srcdir ++ "/external/glfw/include" });
     }
 
     addCSourceFilesVersioned(raylib, &.{
-        try join2(gpa, relative, "rcore.c"),
-        try join2(gpa, relative, "utils.c"),
-    }, raylib_flags_arr.items);
+        srcdir ++ "/rcore.c",
+        srcdir ++ "/utils.c",
+    }, raylib_flags);
 
     if (options.raudio) {
         addCSourceFilesVersioned(raylib, &.{
-            try join2(gpa, relative, "raudio.c"),
-        }, raylib_flags_arr.items);
+            srcdir ++ "/raudio.c",
+        }, raylib_flags);
     }
     if (options.rmodels) {
         addCSourceFilesVersioned(raylib, &.{
-            try join2(gpa, relative, "rmodels.c"),
-        }, raylib_flags_arr.items);
+            srcdir ++ "/rmodels.c",
+        }, &[_][]const u8{
+            "-fno-sanitize=undefined", // https://github.com/raysan5/raylib/issues/1891
+        } ++ raylib_flags);
     }
     if (options.rshapes) {
         addCSourceFilesVersioned(raylib, &.{
-            try join2(gpa, relative, "rshapes.c"),
-        }, raylib_flags_arr.items);
+            srcdir ++ "/rshapes.c",
+        }, raylib_flags);
     }
     if (options.rtext) {
         addCSourceFilesVersioned(raylib, &.{
-            try join2(gpa, relative, "rtext.c"),
-        }, raylib_flags_arr.items);
+            srcdir ++ "/rtext.c",
+        }, raylib_flags);
     }
     if (options.rtextures) {
         addCSourceFilesVersioned(raylib, &.{
-            try join2(gpa, relative, "rtextures.c"),
-        }, raylib_flags_arr.items);
+            srcdir ++ "/rtextures.c",
+        }, raylib_flags);
     }
 
     var gen_step = b.addWriteFiles();
@@ -88,27 +59,28 @@ pub fn addRaylib(b: *std.Build, target: anytype, optimize: std.builtin.OptimizeM
 
     if (options.raygui) {
         const raygui_c_path = gen_step.add("raygui.c", "#define RAYGUI_IMPLEMENTATION\n#include \"raygui.h\"\n");
-        raylib.addCSourceFile(.{ .file = raygui_c_path, .flags = raylib_flags_arr.items });
-        raylib.addIncludePath(.{ .cwd_relative = srcdir });
-        raylib.addIncludePath(.{ .cwd_relative = srcdir ++ "/../../raygui/src" });
+        raylib.addCSourceFile(.{ .file = raygui_c_path, .flags = raylib_flags });
+        raylib.addIncludePath(.{ .path = srcdir });
+        raylib.addIncludePath(.{ .path = srcdir ++ "/../../raygui/src" });
     }
 
-    switch (getOsTagVersioned(target)) {
+    switch (target.getOsTag()) {
         .windows => {
             addCSourceFilesVersioned(raylib, &.{
-                try join2(gpa, relative, "rglfw.c"),
-            }, raylib_flags_arr.items);
+                srcdir ++ "/rglfw.c",
+            }, raylib_flags);
             raylib.linkSystemLibrary("winmm");
             raylib.linkSystemLibrary("gdi32");
             raylib.linkSystemLibrary("opengl32");
+            raylib.addIncludePath(.{ .path = "external/glfw/deps/mingw" });
 
             raylib.defineCMacro("PLATFORM_DESKTOP", null);
         },
         .linux => {
             if (!options.platform_drm) {
                 addCSourceFilesVersioned(raylib, &.{
-                    try join2(gpa, relative, "rglfw.c"),
-                }, raylib_flags_arr.items);
+                    srcdir ++ "/rglfw.c",
+                }, raylib_flags);
                 raylib.linkSystemLibrary("GL");
                 raylib.linkSystemLibrary("rt");
                 raylib.linkSystemLibrary("dl");
@@ -137,8 +109,8 @@ pub fn addRaylib(b: *std.Build, target: anytype, optimize: std.builtin.OptimizeM
         },
         .freebsd, .openbsd, .netbsd, .dragonfly => {
             addCSourceFilesVersioned(raylib, &.{
-                try join2(gpa, relative, "rglfw.c"),
-            }, raylib_flags_arr.items);
+                srcdir ++ "/rglfw.c",
+            }, raylib_flags);
             raylib.linkSystemLibrary("GL");
             raylib.linkSystemLibrary("rt");
             raylib.linkSystemLibrary("dl");
@@ -154,10 +126,12 @@ pub fn addRaylib(b: *std.Build, target: anytype, optimize: std.builtin.OptimizeM
         },
         .macos => {
             // On macos rglfw.c include Objective-C files.
-            try raylib_flags_arr.append("-ObjC");
+            const raylib_flags_extra_macos = &[_][]const u8{
+                "-ObjC",
+            };
             addCSourceFilesVersioned(raylib, &.{
-                try join2(gpa, relative, "rglfw.c"),
-            }, raylib_flags_arr.items);
+                srcdir ++ "/rglfw.c",
+            }, raylib_flags ++ raylib_flags_extra_macos);
             raylib.linkFramework("Foundation");
             raylib.linkFramework("CoreServices");
             raylib.linkFramework("CoreGraphics");
@@ -198,10 +172,9 @@ pub const Options = struct {
     rtextures: bool = true,
     raygui: bool = false,
     platform_drm: bool = false,
-    shared: bool = false,
 };
 
-pub fn build(b: *std.Build) !void {
+pub fn build(b: *std.Build) void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -221,10 +194,9 @@ pub fn build(b: *std.Build) !void {
         .rtextures = b.option(bool, "rtextures", "Compile with textures support") orelse defaults.rtextures,
         .rshapes = b.option(bool, "rshapes", "Compile with shapes support") orelse defaults.rshapes,
         .raygui = b.option(bool, "raygui", "Compile with raygui support") orelse defaults.raygui,
-        .shared = b.option(bool, "shared", "Compile as shared library") orelse defaults.shared,
     };
 
-    const lib = try addRaylib(b, target, optimize, options);
+    const lib = addRaylib(b, target, optimize, options);
 
     lib.installHeader("src/raylib.h", "raylib.h");
     lib.installHeader("src/raymath.h", "raymath.h");
@@ -243,14 +215,6 @@ const srcdir = struct {
     }
 }.getSrcDir();
 
-fn getOsTagVersioned(target: anytype) std.Target.Os.Tag {
-    if (comptime builtin.zig_version.minor >= 12) {
-        return target.result.os.tag;
-    } else {
-        return target.getOsTag();
-    }
-}
-
 fn addCSourceFilesVersioned(exe: *std.Build.Step.Compile, files: []const []const u8, flags: []const []const u8) void {
     if (comptime builtin.zig_version.minor >= 12) {
         exe.addCSourceFiles(.{
@@ -260,9 +224,4 @@ fn addCSourceFilesVersioned(exe: *std.Build.Step.Compile, files: []const []const
     } else {
         exe.addCSourceFiles(files, flags);
     }
-}
-
-fn join2(allocator: std.mem.Allocator, path1: []const u8, path2: []const u8) ![]u8 {
-    const joinedPath = try std.fs.path.join(allocator, &[_][]const u8{ path1, path2 });
-    return joinedPath;
 }

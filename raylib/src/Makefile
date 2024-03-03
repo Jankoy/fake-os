@@ -24,7 +24,7 @@
 #   Many thanks to Milan Nikolic (@gen2brain) for implementing Android platform pipeline.
 #   Many thanks to Emanuele Petriglia for his contribution on GNU/Linux pipeline.
 #
-#   Copyright (c) 2013-2024 Ramon Santamaria (@raysan5)
+#   Copyright (c) 2013-2023 Ramon Santamaria (@raysan5)
 #
 #   This software is provided "as-is", without any express or implied warranty. In no event
 #   will the authors be held liable for any damages arising from the use of this software.
@@ -98,8 +98,8 @@ USE_EXTERNAL_GLFW     ?= FALSE
 
 # PLATFORM_DESKTOP_SDL: It requires SDL library to be provided externally
 # WARNING: Library is not included in raylib, it MUST be configured by users
-SDL_INCLUDE_PATH      ?= $(RAYLIB_SRC_PATH)/external/SDL2/include
-SDL_LIBRARY_PATH      ?= $(RAYLIB_SRC_PATH)/external/SDL2/lib
+SDL_INCLUDE_PATH      ?= $(RAYLIB_SRC_PATH)/external/SDL2-2.28.4/include
+SDL_LIBRARY_PATH      ?= $(RAYLIB_SRC_PATH)/external/SDL2-2.28.4/lib/x64
 
 # Use Wayland display server protocol on Linux desktop (by default it uses X11 windowing system)
 # NOTE: This variable is only used for PLATFORM_OS: LINUX
@@ -114,7 +114,7 @@ HOST_PLATFORM_OS ?= WINDOWS
 PLATFORM_OS ?= WINDOWS
 
 # Determine PLATFORM_OS when required
-ifeq ($(PLATFORM),$(filter $(PLATFORM),PLATFORM_DESKTOP PLATFORM_DESKTOP_SDL PLATFORM_WEB PLATFORM_ANDROID))
+ifeq ($(PLATFORM),$(filter $(PLATFORM),PLATFORM_DESKTOP PLATFORM_DESKTOP_SDL PLATFORM_WEB))
     # No uname.exe on MinGW!, but OS=Windows_NT on Windows!
     # ifeq ($(UNAME),Msys) -> Windows
     ifeq ($(OS),Windows_NT)
@@ -189,12 +189,8 @@ ifeq ($(PLATFORM),PLATFORM_ANDROID)
         ANDROID_NDK ?= C:/android-ndk
         ANDROID_TOOLCHAIN = $(ANDROID_NDK)/toolchains/llvm/prebuilt/windows-x86_64
     else
-		ANDROID_NDK ?= /usr/lib/android/ndk
-		ifeq ($(PLATFORM_OS), OSX)
-			ANDROID_TOOLCHAIN = $(ANDROID_NDK)/toolchains/llvm/prebuilt/darwin-x86_64
-		else
-			ANDROID_TOOLCHAIN = $(ANDROID_NDK)/toolchains/llvm/prebuilt/linux-x86_64
-		endif
+        ANDROID_NDK ?= /usr/lib/android/ndk
+        ANDROID_TOOLCHAIN = $(ANDROID_NDK)/toolchains/llvm/prebuilt/linux-x86_64
     endif
 
     # NOTE: Sysroot can also be reference from $(ANDROID_NDK)/sysroot
@@ -347,20 +343,18 @@ endif
 ifeq ($(PLATFORM),PLATFORM_WEB)
     # -Os                        # size optimization
     # -O2                        # optimization level 2, if used, also set --memory-init-file 0
-    # -sUSE_GLFW=3              # Use glfw3 library (context/input management) -> Only for linker!
-    # -sALLOW_MEMORY_GROWTH=1   # to allow memory resizing -> WARNING: Audio buffers could FAIL!
-    # -sTOTAL_MEMORY=16777216   # to specify heap memory size (default = 16MB)
-    # -sUSE_PTHREADS=1          # multithreading support
-    # -sFORCE_FILESYSTEM=1      # force filesystem to load/save files data
-    # -sASSERTIONS=1            # enable runtime checks for common memory allocation errors (-O1 and above turn it off)
-    # -sGL_ENABLE_GET_PROC_ADDRESS # enable using the *glGetProcAddress() family of functions, required for extensions loading
+    # -s USE_GLFW=3              # Use glfw3 library (context/input management) -> Only for linker!
+    # -s ALLOW_MEMORY_GROWTH=1   # to allow memory resizing -> WARNING: Audio buffers could FAIL!
+    # -s TOTAL_MEMORY=16777216   # to specify heap memory size (default = 16MB)
+    # -s USE_PTHREADS=1          # multithreading support
+    # -s FORCE_FILESYSTEM=1      # force filesystem to load/save files data
+    # -s ASSERTIONS=1            # enable runtime checks for common memory allocation errors (-O1 and above turn it off)
     # --profiling                # include information for code profiling
     # --memory-init-file 0       # to avoid an external memory initialization code file (.mem)
     # --preload-file resources   # specify a resources folder for data compilation
     ifeq ($(RAYLIB_BUILD_MODE),DEBUG)
-        CFLAGS += -sASSERTIONS=1 --profiling
+        CFLAGS += -s ASSERTIONS=1 --profiling
     endif
-    #CFLAGS += -sGL_ENABLE_GET_PROC_ADDRESS
 endif
 ifeq ($(PLATFORM),PLATFORM_ANDROID)
     # Compiler flags for arquitecture
@@ -382,7 +376,7 @@ ifeq ($(PLATFORM),PLATFORM_ANDROID)
     # -Werror=format-security
     CFLAGS += -Wa,--noexecstack -Wformat -no-canonical-prefixes
     # Preprocessor macro definitions
-    CFLAGS += -D__ANDROID__ -DPLATFORM_ANDROID -D__ANDROID_API__=$(ANDROID_API_VERSION)
+    CFLAGS += -D__ANDROID__ -DPLATFORM_ANDROID -D__ANDROID_API__=$(ANDROID_API_VERSION) -DMAL_NO_OSS
 endif
 
 # Define required compilation flags for raylib SHARED lib
@@ -391,13 +385,7 @@ ifeq ($(RAYLIB_LIBTYPE),SHARED)
     # BE CAREFUL: It seems that for gcc -fpic is not the same as -fPIC
     # MinGW32 just doesn't need -fPIC, it shows warnings
     CFLAGS += -fPIC -DBUILD_LIBTYPE_SHARED
-
-    # hide all symbols by default, so RLAPI can expose them
-    ifeq ($(PLATFORM_OS),$(filter $(PLATFORM_OS), LINUX BSD OSX))
-        CFLAGS += -fvisibility=hidden
-    endif
 endif
-
 ifeq ($(PLATFORM),PLATFORM_DRM)
     # without EGL_NO_X11 eglplatform.h tears Xlib.h in which tears X.h in
     # which contains a conflicting type Font
@@ -438,7 +426,7 @@ INCLUDE_PATHS = -I.
 
 # Define additional directories containing required header files
 ifeq ($(PLATFORM),PLATFORM_DESKTOP)
-    INCLUDE_PATHS += -Iexternal/glfw/include
+    INCLUDE_PATHS += -Iexternal/glfw/include -Iexternal/glfw/deps/mingw
     ifeq ($(PLATFORM_OS),BSD)
         INCLUDE_PATHS += -I/usr/local/include
     endif
@@ -447,7 +435,7 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP_SDL)
     INCLUDE_PATHS += -I$(SDL_INCLUDE_PATH)
 endif
 ifeq ($(PLATFORM),PLATFORM_WEB)
-    INCLUDE_PATHS += -Iexternal/glfw/include
+    INCLUDE_PATHS += -Iexternal/glfw/include -Iexternal/glfw/deps/mingw
 endif
 ifeq ($(PLATFORM),PLATFORM_DRM)
     INCLUDE_PATHS += -I/usr/include/libdrm
